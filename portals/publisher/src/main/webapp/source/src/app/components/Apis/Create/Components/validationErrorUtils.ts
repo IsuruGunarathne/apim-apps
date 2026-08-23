@@ -21,7 +21,7 @@
  *
  * When validate-openapi returns 200 with `isValid:false`, its `errors` array is shown in the
  * card directly. But when it *rejects* with an HTTP error (e.g. a network access-control block —
- * 400 UNTRUSTED_URL, "The provided URL is not trusted."), the reason lives in
+ * 400 UNTRUSTED_URL, "The provided URL could not be resolved."), the reason lives in
  * `error.response.body.description` and was previously dropped to the console, leaving the
  * card empty and the user with only a generic "validation failed" message.
  *

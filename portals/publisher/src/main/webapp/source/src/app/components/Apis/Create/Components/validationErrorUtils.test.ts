@@ -21,14 +21,14 @@ import getValidationErrorsFromError from './validationErrorUtils';
 const TITLE = 'Error while validating OpenAPI definition';
 
 describe('getValidationErrorsFromError', () => {
-    it('surfaces the backend description from a rejected validation (e.g. an access-control block, HTTP 400 "not trusted")', () => {
-        const notTrusted = 'The provided URL is not trusted. Please contact the system administrator.';
+    it('surfaces the backend description from a rejected validation (e.g. an access-control block, HTTP 400)', () => {
+        const blockedUrl = 'The provided URL could not be resolved.';
         const error = {
-            response: { body: { code: 400, message: 'Bad Request', description: notTrusted } },
+            response: { body: { code: 400, message: 'Bad Request', description: blockedUrl } },
         };
 
         expect(getValidationErrorsFromError(error, TITLE)).toEqual([
-            { message: TITLE, description: notTrusted },
+            { message: TITLE, description: blockedUrl },
         ]);
     });
 
