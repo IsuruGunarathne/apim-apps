@@ -153,7 +153,16 @@ describe("publisher-023-03 : MCP Server tools management (edit and add tools)", 
 
             cy.intercept('PUT', `**/mcp-servers/${mcpId}`).as('saveMcp');
             cy.get('#resources-save-operations').click();
-            cy.wait('@saveMcp', { timeout: 30000 }).its('response.statusCode').should('eq', 200);
+            cy.wait('@saveMcp', { timeout: 30000 }).then((interception) => {
+                expect(interception.response.statusCode).to.equal(200);
+                // The Name/Description fields edited above bind to a tool's target/description
+                // (see ToolDetailsSection.jsx) - confirm the saved payload actually carries the
+                // edited values, not just that the save call succeeded.
+                const savedTool = interception.request.body.operations
+                    .find((op) => op.target === updatedToolName);
+                expect(savedTool, 'renamed tool present in saved payload').to.exist;
+                expect(savedTool.description).to.equal(updatedDescription);
+            });
         });
     });
 
@@ -276,10 +285,17 @@ describe("publisher-023-03 : MCP Server tools management (edit and add tools)", 
                 // The tool accordion list should grow to 3.
                 cy.get('.ToolDetails-accordionContainer', { timeout: 15000 }).should('have.length', 3);
 
-                // Save and confirm the PUT request succeeds.
+                // Save and confirm the newly added tool's mapping is actually in the payload,
+                // not just that the save call succeeded.
                 cy.intercept('PUT', `**/mcp-servers/${mcpId}`).as('saveMcp');
                 cy.get('#resources-save-operations').click();
-                cy.wait('@saveMcp', { timeout: 30000 }).its('response.statusCode').should('eq', 200);
+                cy.wait('@saveMcp', { timeout: 30000 }).then((interception) => {
+                    expect(interception.response.statusCode).to.equal(200);
+                    const addedTool = interception.request.body.operations.find(
+                        (op) => op.apiOperationMapping?.backendOperation?.target === '/pet/findByStatus',
+                    );
+                    expect(addedTool, '/pet/findByStatus tool present in saved payload').to.exist;
+                });
             });
         });
     });

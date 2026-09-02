@@ -37,8 +37,6 @@ describe("publisher-023-05 : MCP Server lifecycle transitions", () => {
     const { publisher, password } = Utils.getUserInfo();
     let testMcpId;
 
-    Cypress.on('uncaught:exception', () => false);
-
     beforeEach(() => {
         cy.loginToPublisher(publisher, password);
     });

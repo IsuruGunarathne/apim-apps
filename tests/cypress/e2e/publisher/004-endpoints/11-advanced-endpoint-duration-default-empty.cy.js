@@ -28,8 +28,6 @@ describe("publisher-004-11 : Advanced endpoint config Duration field is empty by
     const endpoint = 'https://petstore.swagger.io/v2/store/inventory';
     let testApiId;
 
-    Cypress.on('uncaught:exception', () => false);
-
     beforeEach(() => {
         cy.loginToPublisher(publisher, password);
     });
@@ -108,7 +106,11 @@ describe("publisher-004-11 : Advanced endpoint config Duration field is empty by
             // Advanced Config's own "Save" button only stages the value in local component
             // state - persist it for real via the endpoint page's Save button, then reload
             // the page to force a fresh fetch from the backend before re-checking the value.
+            // handleSave() doesn't await updateAPI(), so wait for the PUT to actually
+            // complete before reloading - otherwise the reload can race the persist.
+            cy.intercept('PUT', `**/apis/${apiId}`).as('saveEndpointConfig');
             cy.get('#endpoint-save-btn').click();
+            cy.wait('@saveEndpointConfig');
 
             cy.visit(`/publisher/apis/${apiId}/overview`);
             cy.get('#itest-api-details-api-config-acc').click();

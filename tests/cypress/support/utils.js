@@ -388,7 +388,17 @@ export default class Utils {
                         -d '{"description":""}' \
                         -H "Authorization: Bearer ${token}" "${Cypress.config().baseUrl}/api/am/publisher/v4/mcp-servers/${mcpId}/revisions"`;
                         cy.exec(curl, { failOnNonZeroExit: false }).then((result) => {
-                            const revision = JSON.parse(result.stdout);
+                            let revision;
+                            try {
+                                revision = JSON.parse(result.stdout);
+                            } catch (e) {
+                                reject(`addMCPRevision: non-JSON response. body=${result.stdout}`);
+                                return;
+                            }
+                            if (!revision || typeof revision.id !== 'string') {
+                                reject(`addMCPRevision: server returned no id. body=${result.stdout}`);
+                                return;
+                            }
                             resolve(revision.id);
                         });
                     });

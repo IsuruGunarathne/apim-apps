@@ -40,8 +40,6 @@ describe("devportal-005-00 : Browse published MCP Servers in DevPortal", () => {
     const { publisher, developer, password } = Utils.getUserInfo();
     let mcpId;
 
-    Cypress.on('uncaught:exception', () => false);
-
     // Login as publisher before each test to establish a session for MCP creation.
     // The test itself switches to the developer role via logout+login.
     beforeEach(() => {

@@ -59,7 +59,7 @@ function mockServerSubtype(mcpServerId, subtype, alias = 'getMCPServer') {
  * @param {string} mcpServerId
  * @param {string} [alias]
  */
-function mockBackendsList(mcpServerId, alias = 'getBackends') {
+function mockBackendsList(mcpServerId, alias = 'getBackends', endpointSecurity) {
     cy.intercept(
         { method: 'GET', pathname: `/api/am/publisher/v4/mcp-servers/${mcpServerId}/backends` },
         (req) => {
@@ -72,6 +72,7 @@ function mockBackendsList(mcpServerId, alias = 'getBackends') {
                             endpoint_type: 'http',
                             production_endpoints: { url: 'https://localhost:3100' },
                             sandbox_endpoints: { url: 'https://localhost:3100' },
+                            ...(endpointSecurity ? { endpoint_security: endpointSecurity } : {}),
                         }),
                         definition: '{"tools":[]}',
                     },
@@ -132,9 +133,9 @@ function openDefinitionDrawer() {
 }
 
 /** Mocks a SERVER_PROXY server + its backends list, visits the endpoints page and opens the drawer. */
-function openProxyServerDefinitionDrawer(mcpServerId) {
+function openProxyServerDefinitionDrawer(mcpServerId, endpointSecurity) {
     mockServerSubtype(mcpServerId, 'SERVER_PROXY');
-    mockBackendsList(mcpServerId);
+    mockBackendsList(mcpServerId, 'getBackends', endpointSecurity);
     visitEndpointsPage(mcpServerId);
     openDefinitionDrawer();
 }
@@ -196,9 +197,16 @@ function configureEndpointAuth(mcpServerId, authType) {
             },
         },
     ).as('getSingleBackend');
-    cy.intercept('PUT', `**/mcp-servers/${mcpServerId}/backends/**`, {
-        statusCode: 200,
-        body: {},
+    // Capture what was actually submitted so the caller can (a) reflect it in a later
+    // mockBackendsList() mock and (b) assert the auth it configured was really saved,
+    // instead of just that the PUT returned 200.
+    let savedEndpointSecurity;
+    cy.intercept('PUT', `**/mcp-servers/${mcpServerId}/backends/**`, (req) => {
+        const sentConfig = typeof req.body.endpointConfig === 'string'
+            ? JSON.parse(req.body.endpointConfig)
+            : req.body.endpointConfig;
+        savedEndpointSecurity = sentConfig?.endpoint_security;
+        req.reply({ statusCode: 200, body: {} });
     }).as('saveEndpointSecurity');
 
     cy.visit(`/publisher/mcp-servers/${mcpServerId}/endpoints/${FAKE_BACKEND_ID}/PRODUCTION`, largeTimeout);
@@ -210,7 +218,10 @@ function configureEndpointAuth(mcpServerId, authType) {
     cy.get('#endpoint-security-submit-btn').click();
 
     cy.get('#endpoint-save-btn').click();
-    cy.wait('@saveEndpointSecurity');
+    return cy.wait('@saveEndpointSecurity').then(() => {
+        expect(savedEndpointSecurity, 'endpoint_security saved by the PUT').to.exist;
+        return savedEndpointSecurity;
+    });
 }
 
 // Endpoint backend definition Re-sync is only exposed for third-party MCP servers,
@@ -412,18 +423,19 @@ describe("publisher-023-07 : MCP endpoint backend definition Re-sync (third-part
 
     AUTH_MATRIX.forEach(({ authType, label }) => {
         it.only(`still delegates credentials to the backend store (no inline securityInfo) with ${label}`, () => {
-            configureEndpointAuth(mcpId, authType);
-            openProxyServerDefinitionDrawer(mcpId);
+            configureEndpointAuth(mcpId, authType).then((savedEndpointSecurity) => {
+                openProxyServerDefinitionDrawer(mcpId, savedEndpointSecurity);
 
-            mockResyncSuccess('validateMCP');
-            cy.get('[data-testid="endpoint-definition-resync-btn"]').click();
-            cy.wait('@validateMCP').then((interception) => {
-                expect(interception.request.body).to.have.property('mcpServerId', mcpId);
-                expect(interception.request.body).to.have.property('endpointType', 'PRODUCTION');
-                expect(interception.request.body).not.to.have.property('securityInfo');
+                mockResyncSuccess('validateMCP');
+                cy.get('[data-testid="endpoint-definition-resync-btn"]').click();
+                cy.wait('@validateMCP').then((interception) => {
+                    expect(interception.request.body).to.have.property('mcpServerId', mcpId);
+                    expect(interception.request.body).to.have.property('endpointType', 'PRODUCTION');
+                    expect(interception.request.body).not.to.have.property('securityInfo');
+                });
+
+                cy.contains('Definition fetched from backend', largeTimeout).should('be.visible');
             });
-
-            cy.contains('Definition fetched from backend', largeTimeout).should('be.visible');
         });
     });
 });
