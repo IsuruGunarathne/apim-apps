@@ -218,7 +218,7 @@ function configureEndpointAuth(mcpServerId, authType) {
 // (subtypeConfiguration.subtype === 'SERVER_PROXY'). This spec covers that whole
 // feature end to end, grouped into focused sub-tests instead of one spec file per
 // scenario.
-describe("publisher-023-07 : MCP endpoint backend definition Re-sync (third-party / SERVER_PROXY servers)", () => {
+describe("publisher-023-07 : MCP endpoint backend definition Re-sync (third-party / SERVER_PROXY servers)", { testIsolation: false }, () => {
     Cypress.on('uncaught:exception', (err, runnable) => {
         return false;
     });
@@ -226,19 +226,18 @@ describe("publisher-023-07 : MCP endpoint backend definition Re-sync (third-part
     const { publisher, password } = Utils.getUserInfo();
     let mcpId;
 
-    // A single MCP server is shared across every test in this file rather than created
-    // per test: every scenario below mocks the server's subtype, backends list, and
-    // resync responses, so the real server's own content is never read or asserted on -
-    // it only needs to exist so the SPA routes resolve. Recreating it per test bought no
-    // extra isolation, just ~14x the create/delete round trips (each delete also carries
-    // a hardcoded 5s wait in Utils.deleteMCPServer).
+    // A single login and a single MCP server are shared across every test in this file
+    // rather than repeated per test: every scenario below mocks the server's subtype,
+    // backends list, and resync responses, so the real server's own content is never
+    // read or asserted on - it only needs to exist so the SPA routes resolve. Recreating
+    // it per test bought no extra isolation, just ~14x the create/delete round trips (each
+    // delete also carries a hardcoded 5s wait in Utils.deleteMCPServer). testIsolation is
+    // disabled above so the cookies this login sets aren't cleared between tests - a
+    // per-test beforeEach login would otherwise time out on test 1 (the before() login is
+    // still live then) and skip the rest of the file when that hook throws.
     before(() => {
         cy.loginToPublisher(publisher, password);
         Utils.addMCPServerFromEndpointConfig({}).then((id) => { mcpId = id; });
-    });
-
-    beforeEach(() => {
-        cy.loginToPublisher(publisher, password);
     });
 
     after(() => {
