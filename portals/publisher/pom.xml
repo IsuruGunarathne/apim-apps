@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.wso2.carbon.apimgt.ui</groupId>
         <artifactId>apim.ui.apps</artifactId>
-        <version>999.0.1-SNAPSHOT</version>
+        <version>999.0.1</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
